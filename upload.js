@@ -6,15 +6,31 @@ function bytesToSize(bytes) {
  }
 
 
+ const element = (tag,classes = [],content)=>{
+     const node = document.createElement(tag)
+     if(classes.length){
+         node.classList.add(...classes);
+     }
+     if(content){
+         node.textContent = content;
+     }
+     return node;
+ }
+
+
+function noop(){}
+
 export function upload(selector , options={}){
     let files = [];
-    const input = document.querySelector(selector);
-    const preview = document.createElement('div');
-    preview.classList.add('preview');
-    const open = document.createElement('button');
-    open.classList.add('btn');
-    open.textContent = 'Open';
+    const onUpload = options.onUpload ?? noop;
 
+
+    const input = document.querySelector(selector);
+    const preview = element('div',['preview']);
+
+    const open = element('button',['btn'],'Open')
+    const upload = element('button',['btn','btn-primary'],'Upload');
+    upload.style.display = 'none';
     if(options.multi){
         input.setAttribute('multiple',true);
     }
@@ -22,7 +38,9 @@ export function upload(selector , options={}){
         input.setAttribute('accept', options.accept.join(','))
     }
     input.insertAdjacentElement('afterend',preview);
+    input.insertAdjacentElement('afterend',upload);
     input.insertAdjacentElement('afterend',open);
+    
     const triggerInput = ()=>{
         input.click();
     }
@@ -31,6 +49,8 @@ export function upload(selector , options={}){
         if(!event.target.files.length) return;
         files = Array.from(event.target.files);
         preview.innerHTML ="";
+        upload.style.display = 'inline';
+
         files.forEach(file =>{
             if(!file.type.match('image'))return;
             const reader = new FileReader();
@@ -56,6 +76,11 @@ export function upload(selector , options={}){
         if(!event.target.dataset.name)return;
         const {name} = event.target.dataset;
         files = files.filter(file => file.name !== name);
+
+        if(!files.length){
+            upload.style.display = 'none';
+        }
+
         const block = preview.querySelector(`[data-name ="${name}"]`)
         .closest('.preview-image');
         block.classList.add('removing');
@@ -63,7 +88,20 @@ export function upload(selector , options={}){
         // block.remove();
     }
 
+    const clearPreview = el =>{
+        el.style.bottom = '0px';
+        el.innerHTML = '<div class="preview-info-progress"></div>'
+    }
+
+    const uploadHandler = event =>{
+        preview.querySelectorAll('.preview-remove').forEach(e=>e.remove());
+        const previewInfo = preview.querySelectorAll('.preview-info');
+        previewInfo.forEach(clearPreview);
+        onUpload(files,previewInfo);
+    }
+
     open.addEventListener('click',triggerInput);
     input.addEventListener('change',changeHandler);
     preview.addEventListener('click',removeHandler)
+    upload.addEventListener('click',uploadHandler);
 }
